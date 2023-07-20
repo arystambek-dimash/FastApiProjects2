@@ -9,8 +9,9 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True)
-    username = Column(String, index=True)
+    username = Column(String, unique=True, index=True)
     password = Column(String)
+    full_name = Column(String, index=True, default="user12345678")
     is_superuser = Column(Boolean, default=False)
 
 
@@ -21,3 +22,11 @@ class Flower(Base):
     name = Column(String, index=True)
     cost = Column(Float)
     count = Column(Integer)
+
+
+class Purchase(Base):
+    __tablename__ = "purchases"
+
+    id = Column(Integer,primary_key=True,index=True)
+    user_id = Column(Integer,index=True)
+    flower_id = Column(Integer)
