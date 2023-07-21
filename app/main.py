@@ -145,7 +145,8 @@ def purchases(request: Request, response: Response, flower_id: int = Form(...), 
             cart = json.dumps(new_cart)
             response.set_cookie(key="cart", value=cart)
             purchases_repository.save_purchases(db,
-                                                PurchaseResponse(user_id=decode_access_token(token), flower_id=flower_id))
+                                                PurchaseResponse(user_id=decode_access_token(token),
+                                                                 flower_id=flower_id))
             return {"Message": "Successful bought"}
         else:
             return HTTPException(status_code=404, detail="The flower cant found")
@@ -158,6 +159,28 @@ def purchases_get(token: str = Depends(oauth2_scheme), db: Session = Depends(get
     purchases_items = purchases_repository.get_all_user_purchases(db, user_id)
     flowers = []
     for f_id in purchases_items:
-        flower = flowers_repository.get_flower_by_id(db,f_id.flower_id)
+        flower = flowers_repository.get_flower_by_id(db, f_id.flower_id)
         flowers.append(flower)
-    return {"purchases_id" : purchases_items.all(),"flowers":flowers}
+    return {"purchases_id": purchases_items.all(), "flowers": flowers}
+
+
+@app.get("/users/get-all")
+def get_all_users(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    superuser = users_repository.get_user_by_id(db, decode_access_token(token))
+    if superuser.is_superuser:
+        users = users_repository.get_all_users(db)
+        return users
+    return HTTPException(status_code=404, detail="U not the superuser")
+
+
+@app.post("/users/make-superuser", response_model=UserResponse)
+def make_superuser(token: str = Depends(oauth2_scheme), user_id: int = Form(), db: Session = Depends(get_db)):
+    superuser = users_repository.get_user_by_id(db, decode_access_token(token))
+    if superuser.is_superuser:
+        get_user = users_repository.get_user_by_id(db, user_id)
+        if get_user:
+            get_user.is_superuser = True
+            user = users_repository.update_user_to_superuser(db, user_id, get_user)
+            return user
+        return HTTPException(status_code=404, detail="Not user with the id")
+    return HTTPException(status_code=404, detail="U not the superuser")

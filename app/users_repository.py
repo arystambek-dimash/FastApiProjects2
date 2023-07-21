@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field,EmailStr
+from pydantic import BaseModel, Field, EmailStr
 from sqlalchemy.orm import Session
 from . import models
+from sqlalchemy import or_
 
 
 class UserRequest(BaseModel):
@@ -11,10 +12,11 @@ class UserRequest(BaseModel):
 
 
 class UserResponse(BaseModel):
-    id:int
+    id: int
     email: EmailStr
     username: str
     full_name: str
+    is_superuser: bool
 
 
 class UsersRepository:
@@ -34,3 +36,18 @@ class UsersRepository:
         db.commit()
         db.refresh(db_user)
         return db_user
+
+    @staticmethod
+    def get_all_users(db: Session):
+        return db.query(models.User).all()
+
+    @staticmethod
+    def update_user_to_superuser(db: Session, user_id,user:UserResponse) -> models.User:
+        existing_user = db.query(models.User).filter(models.User.id == user_id).first()
+        existing_user.email = user.email
+        existing_user.username = user.username
+        existing_user.full_name = user.full_name
+        existing_user.password = user.password
+        existing_user.is_superuser = user.is_superuser
+        db.commit()
+        return existing_user
