@@ -63,10 +63,10 @@ def get_current_active_user(token: str = Depends(oauth2_scheme), db: Session = D
     return user
 
 
-@app.post("/signup", response_model=UserResponse)
+@app.post("/signup")
 def signup(user: UserRequest, db: Session = Depends(get_db)):
     users_repository.create_user(db, user)
-    return user
+    return {"user-successful":"created"}
 
 
 @app.post("/login")
@@ -170,17 +170,17 @@ def get_all_users(token: str = Depends(oauth2_scheme), db: Session = Depends(get
     if superuser.is_superuser:
         users = users_repository.get_all_users(db)
         return users
-    return HTTPException(status_code=404, detail="U not the superuser")
+    return HTTPException(status_code=404, detail="U are not superuser")
 
 
-@app.post("/users/make-superuser", response_model=UserResponse)
+@app.post("/users/make-superuser")
 def make_superuser(token: str = Depends(oauth2_scheme), user_id: int = Form(), db: Session = Depends(get_db)):
     superuser = users_repository.get_user_by_id(db, decode_access_token(token))
-    if superuser.is_superuser:
+    if superuser and superuser.is_superuser:
         get_user = users_repository.get_user_by_id(db, user_id)
         if get_user:
             get_user.is_superuser = True
             user = users_repository.update_user_to_superuser(db, user_id, get_user)
-            return user
+            return {f"user-{user.username}":"was superuser"}
         return HTTPException(status_code=404, detail="Not user with the id")
-    return HTTPException(status_code=404, detail="U not the superuser")
+    return HTTPException(status_code=404, detail="U are not superuser")
