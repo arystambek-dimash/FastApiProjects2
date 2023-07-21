@@ -37,14 +37,16 @@ def decode_access_token(token):
 
 def get_cart_user_active(request: Request, token: str = Depends(oauth2_scheme)):
     user_cart = request.cookies.get("cart")
-    user_cart_json = json.loads(user_cart)
-    new_cart = []
-    for t in user_cart_json:
-        for i, j in t.items():
-            if i == token:
-                new_cart.append(j)
-            break
-    return new_cart
+    if user_cart:
+        user_cart_json = json.loads(user_cart)
+        new_cart = []
+        for t in user_cart_json:
+            for i, j in t.items():
+                if i == token:
+                    new_cart.append(j)
+                    break
+        return new_cart
+    return []
 
 
 def get_db():
@@ -66,7 +68,7 @@ def get_current_active_user(token: str = Depends(oauth2_scheme), db: Session = D
 @app.post("/signup")
 def signup(user: UserRequest, db: Session = Depends(get_db)):
     users_repository.create_user(db, user)
-    return {"user-successful":"created"}
+    return {"user-successful": "created"}
 
 
 @app.post("/login")
@@ -94,6 +96,17 @@ def flowers_post(flower: FlowerRequest, db: Session = Depends(get_db)):
     return {"flower-was-successful-added": flower}
 
 
+@app.post("/flower/delete")
+def flowers_post(flower_id: int = Form(), db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+    user = users_repository.get_user_by_id(db, decode_access_token(token))
+    if user.is_superuser:
+        if flowers_repository.delete_flower(flower_id, db) and flowers_repository.get_flower_by_id(db,flower_id):
+            flowers_repository.delete_flower(flower_id, db)
+            return {"Successful deleted":"True"}
+        return {"the flower not found":"False"}
+    return {"You are not superuser"}
+
+
 @app.post("/cart/items")
 def cart_items_post(flower_id: int = Form(...), token: str = Depends(oauth2_scheme), cart: str = Cookie(default="[]"),
                     db: Session = Depends(get_db)):
@@ -109,15 +122,17 @@ def cart_items_post(flower_id: int = Form(...), token: str = Depends(oauth2_sche
 
 
 @app.get("/cart/items")
-def cart_items(request: Request, token: str = Depends(oauth2_scheme), new_cart: list = Depends(get_cart_user_active),
+def cart_items(new_cart: list = Depends(get_cart_user_active),
                db: Session = Depends(get_db)):
     flowers = []
     total_cost = 0
-    for flower_id in new_cart:
-        flower = flowers_repository.get_flower_by_id(db, flower_id)
-        flowers.append(flower)
-        total_cost += flower.cost
-    return {"Cart Flowers": flowers, "Total cost": total_cost}
+    if new_cart:
+        for flower_id in new_cart:
+            flower = flowers_repository.get_flower_by_id(db, flower_id)
+            flowers.append(flower)
+            total_cost += flower.cost
+        return {"Cart Flowers": flowers, "Total cost": total_cost}
+    return {"There are empty"}
 
 
 @app.post("/purchases")
@@ -163,7 +178,6 @@ def purchases_get(token: str = Depends(oauth2_scheme), db: Session = Depends(get
         flowers.append(flower)
     return {"purchases_id": purchases_items.all(), "flowers": flowers}
 
-
 @app.get("/users/get-all")
 def get_all_users(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     superuser = users_repository.get_user_by_id(db, decode_access_token(token))
@@ -181,6 +195,6 @@ def make_superuser(token: str = Depends(oauth2_scheme), user_id: int = Form(), d
         if get_user:
             get_user.is_superuser = True
             user = users_repository.update_user_to_superuser(db, user_id, get_user)
-            return {f"user-{user.username}":"was superuser"}
+            return {f"user-{user.username}": "was superuser"}
         return HTTPException(status_code=404, detail="Not user with the id")
     return HTTPException(status_code=404, detail="U are not superuser")

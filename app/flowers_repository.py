@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from .models import Flower
+from sqlalchemy import delete
 
 
 class FlowerRequest(BaseModel):
@@ -33,3 +34,9 @@ class FlowersRepository:
         db.refresh(flower_db)
         return flower_db
 
+    @staticmethod
+    def delete_flower(flower_id, db: Session):
+        flower_db = delete(Flower).where(Flower.id == flower_id)
+        db.execute(flower_db)
+        db.commit()
+        return True

@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, EmailStr
 from sqlalchemy.orm import Session
 from . import models
+from sqlalchemy import update
 from sqlalchemy import or_
 
 
@@ -42,12 +43,9 @@ class UsersRepository:
         return db.query(models.User).all()
 
     @staticmethod
-    def update_user_to_superuser(db: Session, user_id,user:UserResponse) -> models.User:
-        existing_user = db.query(models.User).filter(models.User.id == user_id).first()
-        existing_user.email = user.email
-        existing_user.username = user.username
-        existing_user.full_name = user.full_name
-        existing_user.password = user.password
-        existing_user.is_superuser = user.is_superuser
+    def update_user_to_superuser(db: Session, user_id, user: UserResponse) -> models.User:
+        stmt = update(models.User).where(models.User.id == user_id).values(is_superuser=user.is_superuser)
+        db.execute(stmt)
         db.commit()
-        return existing_user
+        updated_user = db.query(models.User).get(user_id)
+        return updated_user
